@@ -14,6 +14,8 @@ const pool = new Pool({
 
 async function mainMenu() {
     const departments = await getDepartments();
+    const roles = await getRoles();
+    const employees = await getEmployees();
     inquirer.prompt([
         {
             type: 'list',
@@ -39,13 +41,44 @@ async function mainMenu() {
                 addRole(departments);
             }
             else if (answers.action === 'add an employee') {
-                addRole(departments);
+                addEmployee(roles, employees);
             }
-            else {
-                process.exit(0);
+            else if (answers.action === 'update an employee role') {
+                updateEmployeeRole(employees, roles);
             }
         })
 }
+function updateEmployeeRole(employees, roles) {
+    inquirer.prompt([
+        {
+            type: 'list',
+            message: 'Which employee\'s role do you want to update?',
+            name: 'name',
+            choices: employees,
+        },
+    ]).then((answers) => {
+
+        const employeeId = employees.filter(employee => employee.name === answers.name)[0].id;
+        inquirer.prompt([
+            {
+                type: 'list',
+                message: 'What role do you want to assign the selected employee?',
+                name: 'name',
+                choices: roles,
+            },
+        ]).then((answers) => {
+            const roleID = roles.filter(role => role.name === answers.name)[0].id;
+            pool.query(`UPDATE employees SET role_id=$1 WHERE id=$2`, [roleID, employeeId], (err, { rows }) => {
+                if (err) {
+                    console.log(err);
+                }
+                console.log(`Updated employee\'s role`);
+                mainMenu();
+            });
+        });
+    });
+}
+
 function addRole(departments) {
     let name;
     let salary;
@@ -114,6 +147,70 @@ function addDepartment() {
     });
 }
 
+
+function addEmployee(roles, employees) {
+    let firstName;
+    let lastName;
+    inquirer.prompt([
+        {
+            type: 'input',
+            message: 'What is the employee\'s first name?',
+            name: 'input'
+        },
+    ]).then((answers) => {
+        console.log(answers.input);
+        firstName = answers.input;
+        inquirer.prompt([
+            {
+                type: 'input',
+                message: 'What is the employee\'s last name?',
+                name: 'input'
+            },
+        ]).then((answers) => {
+
+            lastName = answers.input;
+
+            console.log(answers.input);
+            inquirer.prompt([
+                {
+                    type: 'list',
+                    message: 'What is the employee\'s role?',
+                    name: 'name',
+                    choices: roles,
+                },
+            ]).then((answers) => {
+                const roleID = roles.filter(role => role.name === answers.name)[0].id;    
+                console.log(roleID);
+                let updatedEmployees = employees;
+                updatedEmployees.unshift(({id: null, name: 'None'}))
+                inquirer.prompt([
+                    {
+                        type: 'list',
+                        message: 'What is the employee\'s manager?',
+                        name: 'name',
+                        choices: updatedEmployees,
+                    },
+                ]).then((answers) => {
+                 
+                const managerID = employees.filter(employee => employee.name === answers.name)[0].id;
+           
+                pool.query(`INSERT INTO employees(first_name, last_name, role_id, manager_id) VALUES($1, $2, $3, $4)`, [firstName, lastName, roleID, managerID], (err, { rows }) => {
+                    if (err) {
+                        console.log(err);
+                    }
+                    console.log(`Added ${answers.name} to the database`);
+                    mainMenu();
+                });
+
+            });
+
+        });
+
+    });
+});
+}
+
+
 function viewAllEmployees() {
     viewAll('employees');
 }
@@ -146,6 +243,39 @@ async function getDepartments() {
         });
     });
 }
+
+async function getRoles() {
+    return new Promise((resolve, reject) => {
+        pool.query('SELECT id, title as name FROM roles', function (err, { rows }) {
+            if (err) {
+                // Reject the Promise with the error
+                reject(err);
+            } else {         
+                // Resolve the Promise with the rows
+                resolve(rows);
+            }
+        });
+    });
+}
+
+
+async function getEmployees() {
+    return new Promise((resolve, reject) => {
+        pool.query(`SELECT id, CONCAT(first_name, ' ', last_name) AS name FROM employees`, function (err, { rows }) {
+            if (err) {
+                // Reject the Promise with the error
+                reject(err);
+            } else {
+                // Resolve the Promise with the rows
+                resolve(rows);
+            }
+        });
+    });
+}
+
+
+
+
 pool.connect();
 
 app.listen(PORT, () => {
