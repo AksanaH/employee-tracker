@@ -1,6 +1,8 @@
 const express = require('express');
 const inquirer = require('inquirer');
 const { Pool } = require('pg');
+let ascii_text_generator = require('ascii-text-generator');
+
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -11,7 +13,7 @@ const pool = new Pool({
     password: 'password', // ! Change this to your own password
     database: 'employees_db',
 });
-
+generatePicture();
 async function mainMenu() {
     const departments = await getDepartments();
     const roles = await getRoles();
@@ -89,7 +91,7 @@ function addRole(departments) {
             name: 'input'
         },
     ]).then((answers) => {
-        console.log(answers.input);
+        // console.log(answers.input);
         name = answers.input;
         inquirer.prompt([
             {
@@ -101,7 +103,7 @@ function addRole(departments) {
 
             salary = answers.input;
 
-            console.log(answers.input);
+            // console.log(answers.input);
             inquirer.prompt([
                 {
                     type: 'list',
@@ -135,7 +137,7 @@ function addDepartment() {
             name: 'input'
         },
     ]).then((answers) => {
-        console.log(answers.input);
+        // console.log(answers.input);
         pool.query(`INSERT INTO departments(name) VALUES($1)`, [answers.input], (err, { rows }) => {
             if (err) {
                 console.log(err);
@@ -158,7 +160,7 @@ function addEmployee(roles, employees) {
             name: 'input'
         },
     ]).then((answers) => {
-        console.log(answers.input);
+        // console.log(answers.input);
         firstName = answers.input;
         inquirer.prompt([
             {
@@ -170,7 +172,7 @@ function addEmployee(roles, employees) {
 
             lastName = answers.input;
 
-            console.log(answers.input);
+            // console.log(answers.input);
             inquirer.prompt([
                 {
                     type: 'list',
@@ -180,7 +182,7 @@ function addEmployee(roles, employees) {
                 },
             ]).then((answers) => {
                 const roleID = roles.filter(role => role.name === answers.name)[0].id;    
-                console.log(roleID);
+                // console.log(roleID);
                 let updatedEmployees = employees;
                 updatedEmployees.unshift(({id: null, name: 'None'}))
                 inquirer.prompt([
@@ -212,20 +214,35 @@ function addEmployee(roles, employees) {
 
 
 function viewAllEmployees() {
-    viewAll('employees');
+    pool.query(`SELECT * FROM employees`, function (err, { rows }) {
+        console.log("id\tfirst_name\tlast_name\trole_id\t\tmanager_id");
+        console.log("--\t----------\t---------\t-------\t\t----------");
+        rows.forEach(row => {
+            console.log(`${row.id}\t${row.first_name}\t\t${row.last_name}\t\t${row.role_id}\t\t${row.manager_id}`);
+          });
+        mainMenu();
+    });
 }
 
 function viewAllRoles() {
-    viewAll('roles');
+    pool.query(`SELECT * FROM roles`, function (err, { rows }) {
+        console.log("id\ttitle\t\tsalary\t\tdepartment");
+        console.log("--\t-----\t\t------\t\t----------");
+        rows.forEach(row => {
+            console.log(`${row.id}\t${row.title}\t\t${row.salary}\t\t${row.department}`);
+          });
+        mainMenu();
+    });
 }
 
 function viewAllDepartments() {
-    viewAll('departments');
-}
-
-function viewAll(tableName){
-    pool.query(`SELECT * FROM ${tableName}`, function (err, { rows }) {
-        console.log(rows);
+    pool.query(`SELECT * FROM departments`, function (err, { rows }) {
+        console.log("id\tname");
+        console.log(`--\t----`);
+        rows.forEach(row => {
+            console.log(`${row.id}\t${row.name}`);
+            
+          });
         mainMenu();
     });
 }
@@ -273,13 +290,20 @@ async function getEmployees() {
     });
 }
 
+function generatePicture() {
+    let input_text1 = 'Employee';
+    let ascii_text1 =ascii_text_generator(input_text1,"3");
+    let input_text2 = 'Manager';
+    let ascii_text2 =ascii_text_generator(input_text2,"3");
+    console.log(ascii_text1);
+    console.log(ascii_text2);
+}
 
 
 
 pool.connect();
 
 app.listen(PORT, () => {
-    console.log('Hey you did it!');
+    console.log('Now listening');
 });
 mainMenu();
-
