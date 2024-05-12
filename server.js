@@ -2,6 +2,7 @@ const express = require('express');
 const inquirer = require('inquirer');
 const { Pool } = require('pg');
 let ascii_text_generator = require('ascii-text-generator');
+const { printTable } = require('console-table-printer');
 
 
 const app = express();
@@ -181,10 +182,10 @@ function addEmployee(roles, employees) {
                     choices: roles,
                 },
             ]).then((answers) => {
-                const roleID = roles.filter(role => role.name === answers.name)[0].id;    
+                const roleID = roles.filter(role => role.name === answers.name)[0].id;
                 // console.log(roleID);
                 let updatedEmployees = employees;
-                updatedEmployees.unshift(({id: null, name: 'None'}))
+                updatedEmployees.unshift(({ id: null, name: 'None' }))
                 inquirer.prompt([
                     {
                         type: 'list',
@@ -193,56 +194,58 @@ function addEmployee(roles, employees) {
                         choices: updatedEmployees,
                     },
                 ]).then((answers) => {
-                 
-                const managerID = employees.filter(employee => employee.name === answers.name)[0].id;
-           
-                pool.query(`INSERT INTO employees(first_name, last_name, role_id, manager_id) VALUES($1, $2, $3, $4)`, [firstName, lastName, roleID, managerID], (err, { rows }) => {
-                    if (err) {
-                        console.log(err);
-                    }
-                    console.log(`Added ${answers.name} to the database`);
-                    mainMenu();
+
+                    const managerID = employees.filter(employee => employee.name === answers.name)[0].id;
+
+                    pool.query(`INSERT INTO employees(first_name, last_name, role_id, manager_id) VALUES($1, $2, $3, $4)`, [firstName, lastName, roleID, managerID], (err, { rows }) => {
+                        if (err) {
+                            console.log(err);
+                        }
+                        console.log(`Added ${answers.name} to the database`);
+                        mainMenu();
+                    });
+
                 });
 
             });
 
         });
-
     });
-});
 }
 
 
 function viewAllEmployees() {
-    pool.query(`SELECT * FROM employees`, function (err, { rows }) {
-        console.log("id\tfirst_name\tlast_name\trole_id\t\tmanager_id");
-        console.log("--\t----------\t---------\t-------\t\t----------");
-        rows.forEach(row => {
-            console.log(`${row.id}\t${row.first_name}\t\t${row.last_name}\t\t${row.role_id}\t\t${row.manager_id}`);
-          });
+    pool.query(`SELECT  e1.id id,
+                        e1.first_name first_name,
+                        e1.last_name last_name,
+                        r.title title,
+                        d.name department,
+                        r.salary salary,
+                        CONCAT(e2.first_name, ' ', e2.last_name) manager
+                    FROM employees e1
+                    left JOIN employees e2
+                        ON e1.manager_id = e2.id
+                    JOIN roles r
+                        ON r.id = e1.role_id
+                    JOIN departments d
+                        ON d.id = r.department`, function (err, { rows }) {
+        rows.forEach(el => el.manager = el.manager.length == 1 ? 'null' : el.manager);
+
+        printTable(rows);
         mainMenu();
     });
 }
 
 function viewAllRoles() {
     pool.query(`SELECT * FROM roles`, function (err, { rows }) {
-        console.log("id\ttitle\t\tsalary\t\tdepartment");
-        console.log("--\t-----\t\t------\t\t----------");
-        rows.forEach(row => {
-            console.log(`${row.id}\t${row.title}\t\t${row.salary}\t\t${row.department}`);
-          });
+        printTable(rows);
         mainMenu();
     });
 }
 
 function viewAllDepartments() {
     pool.query(`SELECT * FROM departments`, function (err, { rows }) {
-        console.log("id\tname");
-        console.log(`--\t----`);
-        rows.forEach(row => {
-            console.log(`${row.id}\t${row.name}`);
-            
-          });
+        printTable(rows);
         mainMenu();
     });
 }
@@ -251,10 +254,8 @@ async function getDepartments() {
     return new Promise((resolve, reject) => {
         pool.query('SELECT * FROM departments', function (err, { rows }) {
             if (err) {
-                // Reject the Promise with the error
                 reject(err);
             } else {
-                // Resolve the Promise with the rows
                 resolve(rows);
             }
         });
@@ -267,7 +268,7 @@ async function getRoles() {
             if (err) {
                 // Reject the Promise with the error
                 reject(err);
-            } else {         
+            } else {
                 // Resolve the Promise with the rows
                 resolve(rows);
             }
@@ -292,9 +293,9 @@ async function getEmployees() {
 
 function generatePicture() {
     let input_text1 = 'Employee';
-    let ascii_text1 =ascii_text_generator(input_text1,"3");
+    let ascii_text1 = ascii_text_generator(input_text1, "3");
     let input_text2 = 'Manager';
-    let ascii_text2 =ascii_text_generator(input_text2,"3");
+    let ascii_text2 = ascii_text_generator(input_text2, "3");
     console.log(ascii_text1);
     console.log(ascii_text2);
 }
